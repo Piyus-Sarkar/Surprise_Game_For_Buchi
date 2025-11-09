@@ -1,0 +1,487 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>A Surprise For You!</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Quicksand:wght@400;600;700&display=swap" rel="stylesheet">
+
+    <style>
+        body {
+            font-family: 'Quicksand', sans-serif;
+            touch-action: none; 
+            overflow: hidden;
+            background: linear-gradient(135deg, #fdfcfb 0%, #e2d1c3 100%);
+            user-select: none; 
+            -webkit-user-select: none;
+        }
+        #game-canvas {
+            background: linear-gradient(to bottom, #a1c4fd 0%, #c2e9fb 100%);
+            box-shadow: 0 10px 30px -5px rgba(0, 0, 0, 0.3);
+            border-radius: 16px;
+        }
+        .modal-overlay {
+            backdrop-filter: blur(8px);
+            background-color: rgba(0,0,0,0.4);
+        }
+        .fade-in { animation: fadeIn 0.6s ease-out; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+
+        .milestone-photo, #end-photo {
+            max-width: 100%;
+            max-height: 200px;
+            width: auto;
+            height: auto;
+            object-fit: contain;
+            border-radius: 12px;
+            margin: 1rem auto;
+            display: block;
+            box-shadow: 0 8px 20px rgba(0,0,0,0.15);
+            border: 4px solid white;
+        }
+    </style>
+</head>
+
+<body class="h-screen w-screen flex items-center justify-center overflow-hidden bg-rose-50" ondragstart="return false;" ondrop="return false;">
+
+    <div class="relative w-full max-w-md h-full md:h-[95vh] md:max-h-[850px] flex flex-col p-2 md:p-6">
+        
+        <div id="hud" class="hidden flex justify-between items-center mb-2 md:mb-4 px-2">
+            <div class="flex items-center space-x-2">
+                <div class="text-lg md:text-2xl font-bold text-white bg-rose-400/90 px-3 py-1 md:px-4 md:py-2 rounded-2xl shadow-sm border-2 border-white/50 backdrop-blur-sm">
+                    Score: <span id="score">0</span>
+                </div>
+                <div id="shield-indicator" class="hidden text-xl md:text-2xl bg-blue-400/90 p-1 md:p-2 rounded-full shadow-sm border-2 border-white/50 animate-pulse" title="Shield Active!">
+                    ☂️
+                </div>
+            </div>
+            <div class="text-lg md:text-xl text-rose-500 bg-white/80 px-3 py-1 md:px-4 md:py-2 rounded-2xl shadow-sm border-2 border-rose-100">
+                <span id="lives">❤️❤️❤️</span>
+            </div>
+        </div>
+
+        <canvas id="game-canvas" class="hidden w-full flex-grow object-cover rounded-2xl md:rounded-3xl shadow-[0_10px_30px_rgba(8,_112,_184,_0.5)]"></canvas>
+
+        <div id="start-screen" class="absolute inset-4 flex flex-col items-center justify-center p-6 fade-in bg-white/95 backdrop-blur-md rounded-3xl shadow-2xl text-center">
+            <div class="text-6xl md:text-7xl mb-6 animate-bounce">🌸</div>
+            <h1 class="text-3xl md:text-4xl font-bold text-slate-800 mb-4">
+                Hi, <span id="her-name-placeholder" class="text-rose-500">Friend</span>!
+            </h1>
+            <p class="text-lg md:text-xl text-slate-600 mb-8 leading-relaxed">
+                I made a little something to brighten your day.
+                <br><br>
+                Catch the good vibes, avoid the gloomy clouds!
+            </p>
+            <button onclick="startGame()" class="bg-gradient-to-r from-rose-400 to-rose-500 hover:from-rose-500 hover:to-rose-600 text-white text-xl md:text-2xl font-bold py-4 px-10 md:px-12 rounded-full shadow-lg transform transition hover:scale-105 active:scale-95 flex items-center">
+                <span>Start Playing</span>
+                <span class="ml-2">👉</span>
+            </button>
+        </div>
+
+        <div id="message-modal" class="hidden absolute inset-0 z-50 modal-overlay flex items-center justify-center p-4">
+            <div class="bg-white/95 backdrop-blur-md rounded-3xl p-6 max-w-sm w-full shadow-2xl transform transition-all scale-100 fade-in border border-white/50 max-h-[90vh] overflow-y-auto">
+                <div class="text-center">
+                    <div id="modal-icon" class="text-6xl mb-4">✨</div>
+                    <h2 id="modal-title" class="text-2xl font-bold text-slate-800 mb-3">Doing Great!</h2>
+                    <img id="modal-photo" src="" alt="Special memory" class="milestone-photo hidden">
+                    <p id="modal-body" class="text-lg text-slate-600 mb-8 leading-relaxed font-medium px-2">
+                        </p>
+                    <button onclick="closeModal()" class="bg-blue-500 hover:bg-blue-600 text-white text-xl font-bold py-3 px-12 rounded-full shadow-md transition transform hover:scale-105 active:scale-95 mt-2">
+                        Continue
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <div id="end-screen" class="hidden absolute inset-4 z-50 flex flex-col items-center justify-center p-6 fade-in bg-white/95 backdrop-blur-md rounded-3xl shadow-2xl text-center overflow-y-auto">
+             <div class="w-full max-w-sm my-auto">
+                <div id="end-icon" class="text-7xl mb-4">🎉</div>
+                <h1 id="end-title" class="text-3xl font-bold text-slate-800 mb-4">You Did It!</h1>
+                <img id="end-photo" src="" alt="Us" class="hidden">
+                <p id="end-message" class="text-xl text-slate-700 mb-8 leading-relaxed font-medium"></p>
+                <button onclick="location.reload()" class="bg-rose-500 hover:bg-rose-600 text-white text-xl font-bold py-4 px-10 rounded-full shadow-md transition transform hover:scale-105 active:scale-95">
+                    Play Again 🔄
+                </button>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        // =========================================
+        //  👇 CUSTOMIZE YOUR SURPRISE HERE! 👇
+        // =========================================
+
+        // 1. Her Name and Nickname
+        const HER_NAME = "Buchi";  
+        const HER_NICKNAME = "Buchi"; 
+
+        // 2. Milestone Messages with NEW EMOJIS! 
+        const MILESTONE_MESSAGES = [
+            {
+                score: 50,
+                title: "A little note for you... 💌",
+                message: "I know things have been tough lately—the misunderstandings, the quarrels, and the silence. I deeply regret my part in that from the bottom of my heart. I'm really sorry, and I want to assure you I'm correcting myself so it won't happen again. It's hard for me to find the right words right now because I don't even know what to say to bring everything back to normal, but i really want you to know that how much I truly care.",
+                icon: "✨", 
+                // PASTE YOUR PHOTO LINK INSIDE THE QUOTES BELOW:
+                photoUrl: "IMG-20241004-WA0014.jpg" 
+            },
+            {
+                score: 150,
+                title: "Remember when...? ✨",
+                message: "We've had so many amazing times—laughing at everything, sharing crazy memories, and just being ourselves. I miss that madness so much. Just like you're catching the good things in this game, I really want us to catch more of those beautiful moments in real life. And just like you're dodging those rain clouds, I really hope you can forgive me and let the bad things from this past month go away, so we can be 'Pagol' again.",
+                icon: "🔥", 
+                // PASTE YOUR PHOTO LINK INSIDE THE QUOTES BELOW:
+                photoUrl: "IMG20231228132604.jpg"
+            },
+            {
+                score: 250,
+                title: "From my heart... ❤️",
+                message: "Lately, stress from work and home has made me easily irritated, and because you're closest to me, I've unfairly let that out on you. I've been overthinking so much that I missed the simple things you were trying to say. I know it sounds like an excuse, but I genuinely didn't mean to hurt you—when you're sad, I'm sad too. I really want to change how things are right now, to thinking before I speak, and I really hope you can forgive me.",
+                icon: "🥰", 
+                // PASTE YOUR PHOTO LINK INSIDE THE QUOTES BELOW:
+                photoUrl: "IMG-20250703-WA0116.jpg"
+            }
+        ];
+
+        // 3. "Buchi" Power-Up Settings
+        const BUCHI_EMOJI = '🐭'; // Your cute mouse emoji!
+        const BUCHI_POWERUP_MESSAGE = { 
+            title: `It's ${HER_NICKNAME}! 🐭`, 
+            message: `Just like you always brighten my day, catching ${HER_NICKNAME} gives you extra happiness! You're the only one i trust the most, and I hope this little surprise brings a smile to your face. you mean so much to me!`,
+            icon: BUCHI_EMOJI,
+            // Optional: Paste a specific photo for Buchi here
+            photoUrl: "InShot_20250416_200725961.jpg" 
+        };
+
+        // 4. Final Win Settings (Score = 350 for ~3 mins play)
+        const WINNING_SCORE = 350;
+        const WIN_TITLE = "You Win! 🏆🎉 Thanks for being there for me always 💖, and Sorry 🙏";
+        const WIN_MESSAGE = "I really wanted to bring a little happiness to your day. You deserve more happiness!, And remember, no matter what, I'm always here for you.";
+        // PASTE YOUR FINAL WIN PHOTO LINK INSIDE THE QUOTES BELOW:
+        const END_PHOTO_URL = "IMG20250822142222.jpg"; 
+
+        // =========================================
+        //  👆 END OF CUSTOMIZATION 👆
+        // =========================================
+
+        const canvas = document.getElementById('game-canvas');
+        const ctx = canvas.getContext('2d');
+        const startScreen = document.getElementById('start-screen');
+        const hud = document.getElementById('hud');
+        const scoreEl = document.getElementById('score');
+        const livesEl = document.getElementById('lives');
+        const shieldIndicator = document.getElementById('shield-indicator');
+        const messageModal = document.getElementById('message-modal');
+        const endScreen = document.getElementById('end-screen');
+        const endPhotoEl = document.getElementById('end-photo');
+        const modalPhotoEl = document.getElementById('modal-photo');
+
+        document.getElementById('her-name-placeholder').innerText = HER_NAME;
+
+        let gameState = 'start'; 
+        let score = 0;
+        let lives = 3;
+        let animationFrameId;
+        let lastTime = 0;
+        let itemSpawnTimer = 0;
+        let gameSpeedMultiplier = 1.0;
+
+        const GOOD_ITEMS = ['🌸', '🍬', '🍭', '🍓', '💖', '✨', '🦋', '🧁'];
+        const BAD_ITEM = '🌧️';
+        const PLAYER_AVATAR = '🧺';
+        const POWERUP_SHIELD = '☂️';
+        const POWERUP_STAR = '🌟';
+
+        const STAR_SCORE_BONUS = 25;
+        const BUCHI_SCORE_BONUS = 50; 
+        const BUCHI_LIFE_RESTORE = 1;
+
+        const player = {
+            x: 0, y: 0, width: 85, height: 85,
+            hasShield: false,
+            wobble: 0
+        };
+
+        let items = [];
+        let particles = [];
+
+        // --- MAIN GAME LOOP ---
+
+        function resizeCanvas() {
+            const container = canvas.parentElement;
+            canvas.width = container.clientWidth; 
+            canvas.height = container.clientHeight; 
+            player.y = canvas.height - 110; 
+            player.x = canvas.width / 2 - player.width / 2;
+        }
+        window.addEventListener('resize', resizeCanvas);
+
+        function startGame() {
+            startScreen.classList.add('hidden');
+            hud.classList.remove('hidden');
+            canvas.classList.remove('hidden');
+            resizeCanvas();
+            gameState = 'playing';
+            score = 0;
+            lives = 3;
+            player.hasShield = false;
+            items = [];
+            particles = [];
+            gameSpeedMultiplier = 1.0;
+            updateHUD();
+            lastTime = performance.now();
+            requestAnimationFrame(gameLoop);
+        }
+
+        function gameLoop(timestamp) {
+            const deltaTime = timestamp - lastTime;
+            lastTime = timestamp;
+            if (gameState === 'playing') {
+                update(deltaTime);
+                draw();
+            }
+            animationFrameId = requestAnimationFrame(gameLoop);
+        }
+
+        function update(deltaTime) {
+            itemSpawnTimer += deltaTime;
+            if (itemSpawnTimer > 650 / gameSpeedMultiplier) {
+                spawnItem();
+                itemSpawnTimer = 0;
+            }
+
+            player.wobble = Math.sin(timestamp() / 200) * 5;
+
+            for (let i = items.length - 1; i >= 0; i--) {
+                const item = items[i];
+                item.y += item.speed * gameSpeedMultiplier;
+                item.rotation += item.rotationSpeed;
+
+                const hitboxPadding = 10; 
+                if (
+                    item.x < player.x + player.width + hitboxPadding &&
+                    item.x + item.size > player.x - hitboxPadding &&
+                    item.y < player.y + player.height &&
+                    item.y + item.size > player.y + 20 
+                ) {
+                    handleCatch(item, i);
+                    continue;
+                }
+                if (item.y > canvas.height) items.splice(i, 1);
+            }
+
+            for (let i = particles.length - 1; i >= 0; i--) {
+                particles[i].y -= 1.5;
+                particles[i].life -= deltaTime;
+                if (particles[i].life <= 0) particles.splice(i, 1);
+            }
+        }
+
+        function handleCatch(item, index) {
+            items.splice(index, 1);
+
+            if (item.type === 'good') {
+                score += 5;
+                spawnParticle(item.x, item.y, "+5", "#16a34a");
+                gameSpeedMultiplier += 0.002; 
+                checkMilestones();
+            } 
+            else if (item.type === 'shield') {
+                player.hasShield = true;
+                spawnParticle(item.x, item.y, "Protected!", "#3b82f6");
+                updateHUD();
+            }
+            else if (item.type === 'star') {
+                score += STAR_SCORE_BONUS;
+                spawnParticle(item.x, item.y, `+${STAR_SCORE_BONUS} WOW!`, "#eab308");
+                clearBadItems();
+                checkMilestones();
+            }
+            else if (item.type === 'buchi') {
+                score += BUCHI_SCORE_BONUS;
+                lives = Math.min(3, lives + BUCHI_LIFE_RESTORE);
+                spawnParticle(item.x, item.y, `${BUCHI_EMOJI} +${BUCHI_SCORE_BONUS}!`, "#f97316");
+                checkMilestones();
+                showModal(BUCHI_POWERUP_MESSAGE);
+            }
+            else if (item.type === 'bad') {
+                if (player.hasShield) {
+                    player.hasShield = false;
+                    spawnParticle(item.x, item.y, "Blocked!", "#3b82f6");
+                    canvas.style.transform = 'translateY(5px)';
+                    setTimeout(() => canvas.style.transform = 'translateY(0)', 100);
+                } else {
+                    handleLifeLoss();
+                }
+            }
+            updateHUD();
+        }
+
+        function draw() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            items.forEach(item => {
+                ctx.save();
+                ctx.translate(item.x + item.size/2, item.y + item.size/2);
+                ctx.rotate(item.rotation);
+                ctx.font = `${item.size}px Arial`;
+                if (item.type === 'star' || item.type === 'shield' || item.type === 'buchi') {
+                    ctx.shadowColor = 'white';
+                    ctx.shadowBlur = 15;
+                }
+                ctx.fillText(item.emoji, 0, 0);
+                ctx.restore();
+            });
+
+            ctx.save();
+            ctx.translate(player.x + player.width/2, player.y + player.height/2);
+            ctx.rotate(player.wobble * Math.PI / 180);
+            ctx.font = `${player.width}px Arial`;
+            ctx.fillText(PLAYER_AVATAR, 0, 0);
+            if (player.hasShield) {
+                ctx.font = `30px Arial`;
+                ctx.fillText('☂️', 20, -35);
+            }
+            ctx.restore();
+
+            particles.forEach(p => {
+                ctx.save();
+                ctx.fillStyle = p.color;
+                ctx.font = `bold 24px Quicksand`;
+                ctx.globalAlpha = p.life / 1000;
+                ctx.fillText(p.text, p.x, p.y);
+                ctx.restore();
+            });
+        }
+
+        function spawnItem() {
+            const rand = Math.random();
+            let type, emoji, speedMod = 1;
+
+            if (rand > 0.985) { type = 'buchi'; emoji = BUCHI_EMOJI; speedMod = 1.0; } 
+            else if (rand > 0.96) { type = 'star'; emoji = POWERUP_STAR; speedMod = 1.5; } 
+            else if (rand > 0.92) { type = 'shield'; emoji = POWERUP_SHIELD; speedMod = 1.2; }
+            else if (rand > 0.75) { type = 'bad'; emoji = BAD_ITEM; speedMod = 0.9; } 
+            else { type = 'good'; emoji = GOOD_ITEMS[Math.floor(Math.random() * GOOD_ITEMS.length)]; }
+
+            const size = 40 + Math.random() * 20;
+            items.push({
+                x: Math.random() * (canvas.width - size),
+                y: -50,
+                size: size,
+                speed: (2 + Math.random() * 3) * speedMod,
+                rotation: 0,
+                rotationSpeed: (Math.random() - 0.5) * 0.15,
+                type: type,
+                emoji: emoji
+            });
+        }
+
+        function spawnParticle(x, y, text, color) {
+            particles.push({ x, y, text, color, life: 1000 });
+        }
+
+        function clearBadItems() {
+            items = items.filter(item => item.type !== 'bad');
+            ctx.fillStyle = 'rgba(255,255,255,0.5)';
+            ctx.fillRect(0,0,canvas.width, canvas.height);
+        }
+
+        function checkMilestones() {
+            if (score >= WINNING_SCORE) { endGame(true); return; }
+            MILESTONE_MESSAGES.forEach(m => {
+                if (score >= m.score && score - 5 < m.score && !m.triggered) {
+                     m.triggered = true;
+                     showModal(m);
+                }
+            });
+        }
+
+        function handleLifeLoss() {
+            lives--;
+            canvas.style.background = '#fecdd3';
+            setTimeout(() => canvas.style.background = '', 100);
+            if (lives <= 0) endGame(false);
+            updateHUD();
+        }
+
+        function updateHUD() {
+            scoreEl.innerText = score;
+            livesEl.innerText = '❤️'.repeat(lives);
+            shieldIndicator.style.display = player.hasShield ? 'block' : 'none';
+        }
+
+        function movePlayer(clientX) {
+            if (!canvas) return;
+            const rect = canvas.getBoundingClientRect();
+            let relativeX = clientX - rect.left;
+            player.x = Math.max(0, Math.min(canvas.width - player.width, relativeX - player.width/2));
+        }
+
+        window.addEventListener('mousemove', e => {
+            if (gameState === 'playing') movePlayer(e.clientX);
+        });
+        window.addEventListener('touchmove', e => {
+            if (e.target === canvas || canvas.contains(e.target)) { e.preventDefault(); }
+            if (gameState === 'playing') movePlayer(e.touches[0].clientX);
+        }, { passive: false });
+        window.addEventListener('touchstart', e => {
+             if (gameState === 'playing' && (e.target === canvas || canvas.contains(e.target))) {
+                 movePlayer(e.touches[0].clientX);
+             }
+        });
+
+        function showModal(m) {
+            gameState = 'paused';
+            document.getElementById('modal-icon').innerText = m.icon;
+            document.getElementById('modal-title').innerText = m.title;
+            document.getElementById('modal-body').innerText = m.message;
+            if (m.photoUrl && m.photoUrl.length > 10 && !m.photoUrl.includes("placeholder")) {
+                 modalPhotoEl.src = m.photoUrl; modalPhotoEl.classList.remove('hidden');
+            } else { modalPhotoEl.classList.add('hidden'); }
+            messageModal.classList.remove('hidden');
+        }
+        function closeModal() {
+             messageModal.classList.add('hidden');
+             setTimeout(() => { gameState = 'playing'; lastTime = performance.now(); }, 500);
+        }
+        function endGame(won) {
+            gameState = 'end';
+            hud.classList.add('hidden');
+            endScreen.classList.remove('hidden');
+            if (won) {
+                document.getElementById('end-icon').innerText = '🎉';
+                document.getElementById('end-title').innerText = WIN_TITLE;
+                document.getElementById('end-message').innerText = WIN_MESSAGE;
+                if (END_PHOTO_URL && END_PHOTO_URL.length > 10 && !END_PHOTO_URL.includes("placeholder")) { 
+                    endPhotoEl.src = END_PHOTO_URL; endPhotoEl.classList.remove('hidden'); 
+                }
+                triggerConfetti();
+            } else {
+                document.getElementById('end-icon').innerText = '🌧️';
+                document.getElementById('end-title').innerText = "Oh no!";
+                document.getElementById('end-message').innerText = "Don't worry, you can try again! I believe in you.";
+                endPhotoEl.classList.add('hidden');
+            }
+        }
+        function triggerConfetti() {
+            const end = Date.now() + 3000;
+            (function frame() {
+                confetti({ particleCount: 5, angle: 60, spread: 55, origin: { x: 0 } });
+                confetti({ particleCount: 5, angle: 120, spread: 55, origin: { x: 1 } });
+                if (Date.now() < end) requestAnimationFrame(frame);
+            }());
+        }
+        function timestamp() { return window.performance && window.performance.now ? window.performance.now() : new Date().getTime(); }
+        
+        function resetMilestones() { MILESTONE_MESSAGES.forEach(m => m.triggered = false); }
+        const originalStart = startGame;
+        startGame = function() { resetMilestones(); originalStart(); }
+    </script>
+</body>
+</html>
